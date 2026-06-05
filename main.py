@@ -13,12 +13,9 @@ class HospitalERAnalyzer:
         self.data_path = data_path
         self.df = None
         
-        # If no output directory is specified, default to an 'output' folder in the same directory as main.py
-        if output_dir is None:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            self.output_dir = os.path.join(base_dir, 'output')
-        else:
-            self.output_dir = output_dir
+        # Default to an 'output' folder in the same directory as main.py
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.output_dir = output_dir if output_dir else os.path.join(base_dir, 'output')
             
         # Ensure output directory exists
         if not os.path.exists(self.output_dir):
@@ -26,9 +23,26 @@ class HospitalERAnalyzer:
 
     def load_and_clean_data(self):
         """Loads dataset and performs basic pre-processing and data type handling."""
-        print(f"[1/4] Loading and cleaning dataset from: {self.data_path}")
+        print(f"[1/4] Attempting to load dataset from: {self.data_path}")
+        
+        # Robust verification check
         if not os.path.exists(self.data_path):
-            raise FileNotFoundError(f"Dataset not found at {self.data_path}. Please verify it is pushed to GitHub.")
+            # Print helpful debugging information to your Streamlit logs
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            data_dir = os.path.join(base_dir, 'data')
+            
+            error_msg = (
+                f"\n\n❌ CRITICAL ERROR: File not found at: {self.data_path}\n"
+                f"--- Debugging Info for Streamlit Cloud ---\n"
+                f"Current script directory: {base_dir}\n"
+                f"Does 'data' folder exist?: {os.path.exists(data_dir)}\n"
+            )
+            if os.path.exists(data_dir):
+                error_msg += f"Contents of 'data' folder: {os.listdir(data_dir)}\n"
+            error_msg += "-----------------------------------------\n"
+            error_msg += "💡 FIX: Ensure 'data/Hospital ER_Data.csv' is committed and pushed to your GitHub repository (Check exact capitalization!)."
+            
+            raise FileNotFoundError(error_msg)
         
         self.df = pd.read_csv(self.data_path)
         
@@ -50,7 +64,7 @@ class HospitalERAnalyzer:
         if self.df['Patient Admission Flag'].dtype == object:
             self.df['Patient Admission Flag'] = self.df['Patient Admission Flag'].astype(str).str.lower().map({'true': True, 'false': False, '1': True, '0': False})
             
-        print(f"Successfully loaded {len(self.df)} patient records.")
+        print(f"✅ Successfully loaded {len(self.df)} patient records.")
 
     def calculate_kpis(self):
         """Computes key performance indicators for emergency room efficiency."""
@@ -134,33 +148,3 @@ class HospitalERAnalyzer:
         plt.xlabel('Day of Week')
         plt.ylabel('Number of Visits')
         plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.output_dir, '4_weekly_trends.png'))
-        plt.close()
-
-        print(f"All 4 analytic charts saved to folder: '{self.output_dir}/'")
-
-    def run_pipeline(self):
-        """Executes the entire data management pipeline."""
-        self.load_and_clean_data()
-        kpis = self.calculate_kpis()
-        
-        print("\n--- ER KPI Dashboard Preview ---")
-        for k, v in kpis.items():
-            print(f"{k}: {v}")
-        print("---------------------------------\n")
-        
-        self.generate_visualizations()
-        print("[4/4] Pipeline completed successfully!")
-
-
-if __name__ == '__main__':
-    # Get the absolute folder path where main.py sits right now
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    
-    # Establish dynamic, cross-platform path to the CSV file
-    DATA_FILE = os.path.join(BASE_DIR, 'data', 'Hospital ER_Data.csv')
-    
-    # Run the automated pipeline workflow
-    analyzer = HospitalERAnalyzer(data_path=DATA_FILE)
-    analyzer.run_pipeline()
