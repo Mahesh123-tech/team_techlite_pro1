@@ -9,20 +9,26 @@ sns.set_theme(style="whitegrid")
 plt.rcParams.update({'font.size': 10, 'axes.labelsize': 12, 'axes.titlesize': 14})
 
 class HospitalERAnalyzer:
-    def __init__(self, data_path, output_dir='output'):
+    def __init__(self, data_path, output_dir=None):
         self.data_path = data_path
-        self.output_dir = output_dir
         self.df = None
         
+        # If no output directory is specified, default to an 'output' folder in the same directory as main.py
+        if output_dir is None:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            self.output_dir = os.path.join(base_dir, 'output')
+        else:
+            self.output_dir = output_dir
+            
         # Ensure output directory exists
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
 
     def load_and_clean_data(self):
         """Loads dataset and performs basic pre-processing and data type handling."""
-        print("[1/4] Loading and cleaning dataset...")
+        print(f"[1/4] Loading and cleaning dataset from: {self.data_path}")
         if not os.path.exists(self.data_path):
-            raise FileNotFoundError(f"Dataset not found at {self.data_path}. Please download and place it there.")
+            raise FileNotFoundError(f"Dataset not found at {self.data_path}. Please verify it is pushed to GitHub.")
         
         self.df = pd.read_csv(self.data_path)
         
@@ -147,10 +153,14 @@ class HospitalERAnalyzer:
         self.generate_visualizations()
         print("[4/4] Pipeline completed successfully!")
 
+
 if __name__ == '__main__':
-    # Initialize pipeline assuming standard repository layout
-    DATA_FILE = os.path.join('data', 'Hospital ER_Data.csv')
+    # Get the absolute folder path where main.py sits right now
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     
-    # Run the automated workflow
+    # Establish dynamic, cross-platform path to the CSV file
+    DATA_FILE = os.path.join(BASE_DIR, 'data', 'Hospital ER_Data.csv')
+    
+    # Run the automated pipeline workflow
     analyzer = HospitalERAnalyzer(data_path=DATA_FILE)
     analyzer.run_pipeline()
