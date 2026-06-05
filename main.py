@@ -22,29 +22,26 @@ class HospitalERAnalyzer:
             os.makedirs(self.output_dir)
 
     def load_and_clean_data(self):
-        """Loads dataset and performs basic pre-processing and data type handling."""
-        print(f"[1/4] Attempting to load dataset from: {self.data_path}")
+        """Loads dataset from local file or falls back to cloud streaming if file is missing."""
+        print(f"[1/4] Attempting to load dataset...")
         
-        # Robust verification check
-        if not os.path.exists(self.data_path):
-            # Print helpful debugging information to your Streamlit logs
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            data_dir = os.path.join(base_dir, 'data')
-            
-            error_msg = (
-                f"\n\n❌ CRITICAL ERROR: File not found at: {self.data_path}\n"
-                f"--- Debugging Info for Streamlit Cloud ---\n"
-                f"Current script directory: {base_dir}\n"
-                f"Does 'data' folder exist?: {os.path.exists(data_dir)}\n"
-            )
-            if os.path.exists(data_dir):
-                error_msg += f"Contents of 'data' folder: {os.listdir(data_dir)}\n"
-            error_msg += "-----------------------------------------\n"
-            error_msg += "💡 FIX: Ensure 'data/Hospital ER_Data.csv' is committed and pushed to your GitHub repository (Check exact capitalization!)."
-            
-            raise FileNotFoundError(error_msg)
-        
-        self.df = pd.read_csv(self.data_path)
+        if os.path.exists(self.data_path):
+            print(f"📁 Local file found at: {self.data_path}")
+            self.df = pd.read_csv(self.data_path)
+        else:
+            print("⚠️ Local file not found. Executing automatic cloud-stream fallback...")
+            # Fallback direct download link to avoid Streamlit container crashes
+            fallback_url = "https://raw.githubusercontent.com/xavierberge/hospital-emergency-dataset/main/Hospital%20ER_Data.csv"
+            try:
+                self.df = pd.read_csv(fallback_url)
+                print("🌐 Successfully streamed dataset directly from the cloud!")
+            except Exception as e:
+                # If everything fails, provide an informative error map instead of an empty redaction
+                raise FileNotFoundError(
+                    f"Could not load data locally or via fallback URL.\n"
+                    f"Expected Local Path: {self.data_path}\n"
+                    f"Error details: {str(e)}"
+                )
         
         # Parse Patient Admission Date to datetime format
         self.df['Patient Admission Date'] = pd.to_datetime(self.df['Patient Admission Date'], errors='coerce')
@@ -64,7 +61,7 @@ class HospitalERAnalyzer:
         if self.df['Patient Admission Flag'].dtype == object:
             self.df['Patient Admission Flag'] = self.df['Patient Admission Flag'].astype(str).str.lower().map({'true': True, 'false': False, '1': True, '0': False})
             
-        print(f"✅ Successfully loaded {len(self.df)} patient records.")
+        print(f"✅ Processed {len(self.df)} patient records successfully.")
 
     def calculate_kpis(self):
         """Computes key performance indicators for emergency room efficiency."""
@@ -148,3 +145,16 @@ class HospitalERAnalyzer:
         plt.xlabel('Day of Week')
         plt.ylabel('Number of Visits')
         plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.output_dir, '4_weekly_trends.png'))
+        plt.close()
+
+        print(f"All 4 analytic charts saved to folder: '{self.output_dir}/'")
+
+    def run_pipeline(self):
+        """Executes the entire data management pipeline."""
+        self.load_and_clean_data()
+        kpis = self.calculate_kpis()
+        
+        print("\n--- ER KPI Dashboard Preview ---")
+        for k, v in kpis.items():
